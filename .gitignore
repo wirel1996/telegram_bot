@@ -1,0 +1,25 @@
+# Environment
+.env
+
+# Ruby
+.bundle/
+vendor/
+*.gem
+*.rbc
+
+# Database
+data/
+*.db
+*.sqlite3
+
+# Logs
+log/
+*.log
+
+# Temp
+tmp/
+.DS_Store
+
+# IDE
+.vscode/
+.idea/

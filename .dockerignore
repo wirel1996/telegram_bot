@@ -1,0 +1,10 @@
+.git
+.gitignore
+.env
+*.md
+data/
+.bundle
+vendor/
+log/
+tmp/
+

@@ -1,0 +1,76 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    bigdecimal (3.3.1)
+    concurrent-ruby (1.2.3)
+    dotenv (2.8.1)
+    dry-core (1.1.0)
+      concurrent-ruby (~> 1.0)
+      logger
+      zeitwerk (~> 2.6)
+    dry-inflector (1.2.0)
+    dry-logic (1.6.0)
+      bigdecimal
+      concurrent-ruby (~> 1.0)
+      dry-core (~> 1.1)
+      zeitwerk (~> 2.6)
+    dry-struct (1.8.0)
+      dry-core (~> 1.1)
+      dry-types (~> 1.8, >= 1.8.2)
+      ice_nine (~> 0.11)
+      zeitwerk (~> 2.6)
+    dry-types (1.8.3)
+      bigdecimal (~> 3.0)
+      concurrent-ruby (~> 1.0)
+      dry-core (~> 1.0)
+      dry-inflector (~> 1.0)
+      dry-logic (~> 1.4)
+      zeitwerk (~> 2.6)
+    et-orbi (1.2.11)
+      tzinfo
+    faraday (2.14.0)
+      faraday-net_http (>= 2.0, < 3.5)
+      json
+      logger
+    faraday-multipart (1.2.0)
+      multipart-post (~> 2.0)
+    faraday-net_http (3.4.2)
+      net-http (~> 0.5)
+    fugit (1.11.1)
+      et-orbi (~> 1.2, >= 1.2.11)
+      raabro (~> 1.4)
+    ice_nine (0.11.2)
+    json (2.18.0)
+    logger (1.7.0)
+    multipart-post (2.4.1)
+    net-http (0.9.1)
+      uri (>= 0.11.1)
+    raabro (1.4.0)
+    rufus-scheduler (3.9.1)
+      fugit (~> 1.1, >= 1.1.6)
+    sqlite3 (1.7.0-aarch64-linux)
+    sqlite3 (1.7.0-arm64-darwin)
+    sqlite3 (1.7.0-x86_64-linux)
+    telegram-bot-ruby (1.0.0)
+      dry-struct (~> 1.6)
+      faraday (~> 2.0)
+      faraday-multipart (~> 1.0)
+      zeitwerk (~> 2.6)
+    tzinfo (2.0.6)
+      concurrent-ruby (~> 1.0)
+    uri (1.1.1)
+    zeitwerk (2.6.18)
+
+PLATFORMS
+  aarch64-linux
+  arm64-darwin
+  x86_64-linux
+
+DEPENDENCIES
+  dotenv (~> 2.8)
+  rufus-scheduler (~> 3.9)
+  sqlite3 (~> 1.7)
+  telegram-bot-ruby (~> 1.0)
+
+BUNDLED WITH
+   2.5.4
