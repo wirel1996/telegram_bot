@@ -46,8 +46,13 @@ GEM
     net-http (0.9.1)
       uri (>= 0.11.1)
     raabro (1.4.0)
+    ruby-ole (1.2.13.1)
     rufus-scheduler (3.9.1)
       fugit (~> 1.1, >= 1.1.6)
+    spreadsheet (1.3.4)
+      bigdecimal
+      logger
+      ruby-ole
     sqlite3 (1.7.0-aarch64-linux)
     sqlite3 (1.7.0-arm64-darwin)
     sqlite3 (1.7.0-x86_64-linux)
@@ -69,6 +74,7 @@ PLATFORMS
 DEPENDENCIES
   dotenv (~> 2.8)
   rufus-scheduler (~> 3.9)
+  spreadsheet (~> 1.3)
   sqlite3 (~> 1.7)
   telegram-bot-ruby (~> 1.0)
 
