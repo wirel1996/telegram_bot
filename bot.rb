@@ -42,50 +42,93 @@ def save_report(user_id, username, report_type, content)
 end
 
 # Получение отчётов за последние 24 часа
-def get_recent_reports
+def get_recent_reports(report_type = nil)
   db = SQLite3::Database.new(DB_PATH)
   db.results_as_hash = true
-  reports = db.execute(
-    "SELECT * FROM reports WHERE created_at >= datetime('now', '-1 day') ORDER BY created_at DESC"
-  )
+  
+  if report_type
+    reports = db.execute(
+      "SELECT * FROM reports WHERE report_type = ? AND created_at >= datetime('now', '-1 day') ORDER BY created_at DESC",
+      [report_type]
+    )
+  else
+    reports = db.execute(
+      "SELECT * FROM reports WHERE created_at >= datetime('now', '-1 day') ORDER BY created_at DESC"
+    )
+  end
+  
   db.close
   reports
 end
 
 # Форматирование уведомления
-def format_notification(reports)
+def format_notification(reports, single_type = false)
   return "📋 Отчётов за последние сутки нет." if reports.empty?
 
-  text = "📋 *Отчёт за последние сутки*\n\n"
-  
-  # Группируем по типам
-  grouped = reports.group_by { |r| r['report_type'] }
-  
   type_names = {
     'overheat' => '🔥 Перегрев',
     'deviation' => '⚠️ Погрешность',
     'breakdown' => '🔧 Поломки',
     'unclear' => '❓ Непонятно'
   }
-  
-  grouped.each do |type, items|
-    text += "*#{type_names[type]}*\n"
-    items.each do |item|
+
+  if single_type
+    # Для одного типа отчётов
+    type = reports.first['report_type']
+    text = "*#{type_names[type]}* за последние сутки:\n\n"
+    reports.each do |item|
       time = item['created_at'].split(' ')[1] # только время
-      text += "• #{time} — #{item['content']}\n"
+      date = item['created_at'].split(' ')[0] # дата
+      text += "• #{date} #{time}\n  #{item['content']}\n\n"
     end
-    text += "\n"
+  else
+    # Для всех типов (группируем)
+    text = "📋 *Отчёт за последние сутки*\n\n"
+    grouped = reports.group_by { |r| r['report_type'] }
+    
+    grouped.each do |type, items|
+      text += "*#{type_names[type]}*\n"
+      items.each do |item|
+        time = item['created_at'].split(' ')[1] # только время
+        text += "• #{time} — #{item['content']}\n"
+      end
+      text += "\n"
+    end
   end
   
   text
 end
 
-# Основное меню
+# Главное меню
 def main_menu
   Telegram::Bot::Types::ReplyKeyboardMarkup.new(
     keyboard: [
+      [{ text: '📝 Ввести' }, { text: '📊 Посмотреть' }]
+    ],
+    resize_keyboard: true
+  )
+end
+
+# Меню ввода данных
+def input_menu
+  Telegram::Bot::Types::ReplyKeyboardMarkup.new(
+    keyboard: [
       [{ text: '🔥 Перегрев' }, { text: '⚠️ Погрешность' }],
-      [{ text: '🔧 Поломки' }, { text: '❓ Непонятно' }]
+      [{ text: '🔧 Поломки' }, { text: '❓ Непонятно' }],
+      [{ text: '◀️ Назад' }]
+    ],
+    resize_keyboard: true
+  )
+end
+
+# Меню просмотра данных
+def view_menu
+  Telegram::Bot::Types::ReplyKeyboardMarkup.new(
+    keyboard: [
+      [{ text: '🔥 Перегрев' }, { text: '⚠️ Погрешность' }],
+      [{ text: '🔧 Поломки' }, { text: '❓ Непонятно' }],
+      [{ text: '📋 Все' }],
+      [{ text: '◀️ Назад' }]
     ],
     resize_keyboard: true
   )
@@ -93,6 +136,32 @@ end
 
 # Состояние пользователя (ожидание ввода)
 USER_STATES = {}
+
+# Обработка выбора типа отчёта
+def handle_report_type(bot, message, user_id, username, report_type, prompt_text)
+  state = USER_STATES[user_id]
+  return unless state
+  
+  if state[:mode] == 'input_menu'
+    # Режим ввода
+    USER_STATES[user_id] = { mode: 'waiting_input', report_type: report_type }
+    bot.api.send_message(
+      chat_id: message.chat.id,
+      text: prompt_text,
+      reply_markup: Telegram::Bot::Types::ReplyKeyboardRemove.new(remove_keyboard: true)
+    )
+  elsif state[:mode] == 'view_menu'
+    # Режим просмотра
+    reports = get_recent_reports(report_type)
+    text = format_notification(reports, true)
+    bot.api.send_message(
+      chat_id: message.chat.id,
+      text: text,
+      parse_mode: 'Markdown',
+      reply_markup: view_menu
+    )
+  end
+end
 
 # Главная функция
 def start_bot
@@ -141,46 +210,71 @@ def start_bot
         USER_STATES.delete(user_id)
         bot.api.send_message(
           chat_id: message.chat.id,
-          text: "Привет, #{username}! 👋\n\nВыберите тип отчёта:",
+          text: "Привет, #{username}! 👋\n\nВыберите действие:",
           reply_markup: main_menu
         )
         next
       end
       
-      # Обработка выбора типа отчёта
+      # Обработка главного меню
       case message.text
+      when '📝 Ввести'
+        USER_STATES[user_id] = { mode: 'input_menu' }
+        bot.api.send_message(
+          chat_id: message.chat.id,
+          text: "Выберите тип отчёта:",
+          reply_markup: input_menu
+        )
+        
+      when '📊 Посмотреть'
+        USER_STATES[user_id] = { mode: 'view_menu' }
+        bot.api.send_message(
+          chat_id: message.chat.id,
+          text: "Что хотите посмотреть?",
+          reply_markup: view_menu
+        )
+        
+      when '◀️ Назад'
+        USER_STATES.delete(user_id)
+        bot.api.send_message(
+          chat_id: message.chat.id,
+          text: "Главное меню:",
+          reply_markup: main_menu
+        )
+        
       when '🔥 Перегрев'
-        USER_STATES[user_id] = 'overheat'
-        bot.api.send_message(
-          chat_id: message.chat.id,
-          text: "Введите данные по перегреву (адреса и градусы):\nНапример: ул. Ленина 5 - 85°C, пр. Мира 12 - 92°C",
-          reply_markup: Telegram::Bot::Types::ReplyKeyboardRemove.new(remove_keyboard: true)
-        )
+        handle_report_type(bot, message, user_id, username, 'overheat', 
+                          "Введите данные по перегреву (адреса и градусы):\nНапример: ул. Ленина 5 - 85°C, пр. Мира 12 - 92°C")
+        
       when '⚠️ Погрешность'
-        USER_STATES[user_id] = 'deviation'
-        bot.api.send_message(
-          chat_id: message.chat.id,
-          text: "Введите данные по погрешности (адреса и проценты):\nНапример: ул. Пушкина 7 - 15%, ул. Гагарина 3 - 8%",
-          reply_markup: Telegram::Bot::Types::ReplyKeyboardRemove.new(remove_keyboard: true)
-        )
+        handle_report_type(bot, message, user_id, username, 'deviation',
+                          "Введите данные по погрешности (адреса и проценты):\nНапример: ул. Пушкина 7 - 15%, ул. Гагарина 3 - 8%")
+        
       when '🔧 Поломки'
-        USER_STATES[user_id] = 'breakdown'
-        bot.api.send_message(
-          chat_id: message.chat.id,
-          text: "Введите данные по поломкам (адреса и причины):\nНапример: ул. Чехова 9 - протечка трубы",
-          reply_markup: Telegram::Bot::Types::ReplyKeyboardRemove.new(remove_keyboard: true)
-        )
+        handle_report_type(bot, message, user_id, username, 'breakdown',
+                          "Введите данные по поломкам (адреса и причины):\nНапример: ул. Чехова 9 - протечка трубы")
+        
       when '❓ Непонятно'
-        USER_STATES[user_id] = 'unclear'
-        bot.api.send_message(
-          chat_id: message.chat.id,
-          text: "Введите описание проблемы:",
-          reply_markup: Telegram::Bot::Types::ReplyKeyboardRemove.new(remove_keyboard: true)
-        )
+        handle_report_type(bot, message, user_id, username, 'unclear',
+                          "Введите описание проблемы:")
+        
+      when '📋 Все'
+        # Показать все отчёты
+        if USER_STATES[user_id] && USER_STATES[user_id][:mode] == 'view_menu'
+          reports = get_recent_reports
+          text = format_notification(reports, false)
+          bot.api.send_message(
+            chat_id: message.chat.id,
+            text: text,
+            parse_mode: 'Markdown',
+            reply_markup: view_menu
+          )
+        end
+        
       else
         # Если пользователь в режиме ввода данных
-        if USER_STATES.key?(user_id)
-          report_type = USER_STATES[user_id]
+        if USER_STATES[user_id] && USER_STATES[user_id][:mode] == 'waiting_input'
+          report_type = USER_STATES[user_id][:report_type]
           save_report(user_id, username, report_type, message.text)
           
           USER_STATES.delete(user_id)
